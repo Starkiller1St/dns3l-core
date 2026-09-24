@@ -315,7 +315,8 @@ func (h *CAFunctionHandler) getResourceNoUpd(keyID, caID, objectType string) (*c
 }
 
 func (h *CAFunctionHandler) GetCertificateInfos(caID string, keyID string,
-	authzedDomains []string, pginfo *util.PaginationInfo) ([]types.CACertInfo, error) {
+	authzedDomains []string, pginfo *util.PaginationInfo,
+	search, suffix string) ([]types.CACertInfo, error) {
 
 	sess, err := h.State.NewSession()
 	if err != nil {
@@ -323,7 +324,7 @@ func (h *CAFunctionHandler) GetCertificateInfos(caID string, keyID string,
 	}
 	defer util.LogDefer(log, sess.Close)
 
-	return sess.ListCACerts(keyID, caID, authzedDomains, "", pginfo) //TODO extend api with user query
+	return sess.ListCACerts(keyID, caID, authzedDomains, pginfo, search, suffix) //TODO extend api with user query
 
 }
 

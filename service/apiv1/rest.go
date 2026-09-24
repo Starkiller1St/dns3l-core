@@ -13,6 +13,11 @@ import (
 
 var Version = "1.3" //this is the API version, not the one of the daemon
 
+const (
+	searchKey = "search"
+	suffixKey = "suffix"
+)
+
 type RestV1Handler struct {
 	Service   ServiceV1
 	Validator Validator
@@ -97,6 +102,7 @@ func (hdlr *RestV1Handler) GetCA(w http.ResponseWriter, r *http.Request) {
 	success(w, r)
 }
 
+// ////////////////////////////////////
 func (hdlr *RestV1Handler) HandleCAAnonCert(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	vars := mux.Vars(r)
@@ -115,8 +121,23 @@ func (hdlr *RestV1Handler) HandleCAAnonCert(w http.ResponseWriter, r *http.Reque
 	switch r.Method {
 	case http.MethodGet:
 		//Get info of all CA's certs
+
+		urlValues := r.URL.Query()
+		log.Debugf("urlValues in request %v", urlValues)
+		search := ""
+		if urlValues.Has(searchKey) {
+			search = urlValues[searchKey][0]
+			log.Debugf("look for %v in crt", search)
+		}
+		suffix := ""
+		if urlValues.Has(suffixKey) {
+			suffix = urlValues[suffixKey][0]
+			log.Debugf("look for suffix %v in crt", suffix)
+		}
+
 		pginfo := util.PaginationInfoFromRequest(r)
-		certInfos, err := hdlr.Service.GetCertificateInfos(caID, "", authz, pginfo)
+		certInfos, err := hdlr.Service.GetCertificateInfos(caID, "", authz,
+			pginfo, search, suffix)
 		if err != nil {
 			httpError(w, r, 404, err.Error()) //TODO detect Not Found error
 			return
@@ -314,7 +335,7 @@ func (hdlr *RestV1Handler) HandleAnonCert(w http.ResponseWriter, r *http.Request
 	if r.Method == http.MethodGet {
 		//Get all certs
 		pginfo := util.PaginationInfoFromRequest(r)
-		certInfos, err := hdlr.Service.GetCertificateInfos("", "", authz, pginfo)
+		certInfos, err := hdlr.Service.GetCertificateInfos("", "", authz, pginfo, "", "")
 		if err != nil {
 			httpErrorFromErr(w, r, err)
 			return
@@ -351,7 +372,7 @@ func (hdlr *RestV1Handler) HandleNamedCert(w http.ResponseWriter, r *http.Reques
 	case http.MethodGet:
 		//Get info of specific cert
 		pginfo := util.PaginationInfoFromRequest(r)
-		certInfos, err := hdlr.Service.GetCertificateInfos("", crtID, authz, pginfo)
+		certInfos, err := hdlr.Service.GetCertificateInfos("", crtID, authz, pginfo, "", "")
 		if err != nil {
 			httpErrorFromErr(w, r, err)
 			return

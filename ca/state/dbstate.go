@@ -119,7 +119,7 @@ func domainReverseDBFormToNormal(domainRev string) string {
 }
 
 func constructListCACertsQuery(dbn func(name string) string, keyName string, caid string,
-	authzFilter []string, queryFilter string, pginfo *util.PaginationInfo) (string, []interface{}) {
+	authzFilter []string, pginfo *util.PaginationInfo, queryString, queryDomainSuffix string) (string, []interface{}) {
 
 	//Note that we will never filter for keyName and caid at the same time.
 	//It will just ignore one of the filters
@@ -136,10 +136,15 @@ func constructListCACertsQuery(dbn func(name string) string, keyName string, cai
 		filterParams = append(filterParams, caid)
 	}
 
-	if queryFilter != "" {
+	if queryDomainSuffix != "" {
 		filters = append(filters, "(dom_name_rev = ? OR dom_name_rev LIKE ?)")
-		filter1, filter2 := domainToReverseQueryForm(queryFilter)
+		filter1, filter2 := domainToReverseQueryForm(queryDomainSuffix)
 		filterParams = append(filterParams, filter1, filter2)
+	}
+
+	if queryString != "" {
+		filters = append(filters, "(dom_name_rev = ? OR dom_name_rev LIKE ?)")
+		filterParams = append(filterParams, queryString, queryString)
 	}
 
 	if len(authzFilter) > 0 {
@@ -188,10 +193,10 @@ func keycertsDistinctQueryStr(dbn func(name string) string) string {
 }
 
 func (s *CAStateManagerSQLSession) ListCACerts(keyName string, caid string, authzFilter []string,
-	queryFilter string, pginfo *util.PaginationInfo) ([]types.CACertInfo, error) {
+	pginfo *util.PaginationInfo, queryString, queryDomainSuffix string) ([]types.CACertInfo, error) {
 
 	q, params := constructListCACertsQuery(s.prov.Prov.DBName, keyName, caid,
-		authzFilter, queryFilter, pginfo)
+		authzFilter, pginfo, queryString, queryDomainSuffix)
 
 	rows, err := s.db.Query(q, params...)
 	if err != nil {
