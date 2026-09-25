@@ -114,6 +114,12 @@ func domainToReverseQueryForm(domain string) (string, string) {
 
 }
 
+func searchStringToReverseQueryForm(search string) string {
+	search = util.StringReverse(search)
+	search = strings.ReplaceAll(search, "*", "%") // add % before and after so the exact sting can be  searched
+	return search
+}
+
 func domainReverseDBFormToNormal(domainRev string) string {
 	return util.StringReverse(domainRev)
 }
@@ -136,17 +142,6 @@ func constructListCACertsQuery(dbn func(name string) string, keyName string, cai
 		filterParams = append(filterParams, caid)
 	}
 
-	if queryDomainSuffix != "" {
-		filters = append(filters, "(dom_name_rev = ? OR dom_name_rev LIKE ?)")
-		filter1, filter2 := domainToReverseQueryForm(queryDomainSuffix)
-		filterParams = append(filterParams, filter1, filter2)
-	}
-
-	if queryString != "" {
-		filters = append(filters, "(dom_name_rev = ? OR dom_name_rev LIKE ?)")
-		filterParams = append(filterParams, queryString, queryString)
-	}
-
 	if len(authzFilter) > 0 {
 		filterAuth := make([]string, 0, 10)
 		for _, elem := range authzFilter {
@@ -155,6 +150,17 @@ func constructListCACertsQuery(dbn func(name string) string, keyName string, cai
 			filterParams = append(filterParams, filter1, filter2)
 		}
 		filters = append(filters, fmt.Sprintf("(%s)", strings.Join(filterAuth, " OR ")))
+	}
+
+	if queryDomainSuffix != "" {
+		filters = append(filters, "(dom_name_rev = ? OR dom_name_rev LIKE ?)")
+		filter1, filter2 := domainToReverseQueryForm(queryDomainSuffix)
+		filterParams = append(filterParams, filter1, filter2)
+	}
+
+	if queryString != "" {
+		filters = append(filters, "(dom_name_rev LIKE ?)")
+		filterParams = append(filterParams, searchStringToReverseQueryForm(queryString))
 	}
 
 	filtersStr := strings.Join(filters, " AND ")

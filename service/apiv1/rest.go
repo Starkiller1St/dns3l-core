@@ -16,6 +16,9 @@ var Version = "1.3" //this is the API version, not the one of the daemon
 const (
 	searchKey = "search"
 	suffixKey = "suffix"
+
+	allowedCharsInSearchMessage = "Only '.' '*' [A-Z] [1-9] allowd in search"
+	allowedCharsInSuffixMessage = "Only '.' [A-Z] [1-9] allowd in suffix"
 )
 
 type RestV1Handler struct {
@@ -102,6 +105,30 @@ func (hdlr *RestV1Handler) GetCA(w http.ResponseWriter, r *http.Request) {
 	success(w, r)
 }
 
+func validSearchString(s string) bool {
+	for _, r := range s {
+		if !((r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == '.' || r == '*') {
+			return false
+		}
+	}
+	return true
+}
+
+func validSuffixString(s string) bool {
+	for _, r := range s {
+		if !((r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == '.') {
+			return false
+		}
+	}
+	return true
+}
+
 // ////////////////////////////////////
 func (hdlr *RestV1Handler) HandleCAAnonCert(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
@@ -127,11 +154,22 @@ func (hdlr *RestV1Handler) HandleCAAnonCert(w http.ResponseWriter, r *http.Reque
 		search := ""
 		if urlValues.Has(searchKey) {
 			search = urlValues[searchKey][0]
+			if !validSearchString(search) {
+				httpError(w, r, 422,
+					allowedCharsInSearchMessage)
+				return
+			}
 			log.Debugf("look for %v in crt", search)
 		}
+
 		suffix := ""
 		if urlValues.Has(suffixKey) {
 			suffix = urlValues[suffixKey][0]
+			if !validSuffixString(suffix) {
+				httpError(w, r, 422,
+					allowedCharsInSuffixMessage)
+				return
+			}
 			log.Debugf("look for suffix %v in crt", suffix)
 		}
 
@@ -334,8 +372,34 @@ func (hdlr *RestV1Handler) HandleAnonCert(w http.ResponseWriter, r *http.Request
 
 	if r.Method == http.MethodGet {
 		//Get all certs
+
+		urlValues := r.URL.Query()
+		log.Debugf("urlValues in request %v", urlValues)
+		search := ""
+		if urlValues.Has(searchKey) {
+			search = urlValues[searchKey][0]
+			if !validSearchString(search) {
+				httpError(w, r, 422,
+					allowedCharsInSearchMessage)
+				return
+			}
+			log.Debugf("look for %v in crt", search)
+		}
+
+		suffix := ""
+		if urlValues.Has(suffixKey) {
+			suffix = urlValues[suffixKey][0]
+			if !validSuffixString(suffix) {
+				httpError(w, r, 422,
+					allowedCharsInSuffixMessage)
+				return
+			}
+			log.Debugf("look for suffix %v in crt", suffix)
+		}
+
 		pginfo := util.PaginationInfoFromRequest(r)
-		certInfos, err := hdlr.Service.GetCertificateInfos("", "", authz, pginfo, "", "")
+		certInfos, err := hdlr.Service.GetCertificateInfos("", "",
+			authz, pginfo, search, suffix)
 		if err != nil {
 			httpErrorFromErr(w, r, err)
 			return
